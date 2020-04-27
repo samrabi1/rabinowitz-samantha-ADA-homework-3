@@ -9,4 +9,20 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Challenge 1
 
+```{R}
+
+```
+
+## Challenge 2
+
+```{R}
+
+```
+
+## Challenge 3
+
+```{R}
+
+```
