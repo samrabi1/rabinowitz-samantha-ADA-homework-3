@@ -13,6 +13,7 @@ library(infer)
 library(broom)
 ```
 
+
 ## Challenge 1
 
 The code below loads the **KamilarAndCooperData** dataset and creates a linear model for the effect of mean species brain size (measured in grams) on longevity (measured in months), both before (fit1) and after (fit2) log transforming. 
