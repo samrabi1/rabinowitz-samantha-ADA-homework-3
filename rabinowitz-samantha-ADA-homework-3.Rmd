@@ -14,6 +14,8 @@ library(broom)
 
 ## Challenge 1
 
+The code below loads the **KamilarAndCooperData** dataset and creates a linear model for the effect of mean species brain size (measured in grams) on longevity (measured in months), both before (fit1) and after (fit2) log transforming. 
+
 ```{R}
 f <- "https://raw.githubusercontent.com/difiore/ADA-datasets/master/KamilarAndCooperData.csv"
 d <- read_csv(f, col_names = TRUE)
@@ -23,23 +25,102 @@ fit2 <- lm(log(MaxLongevity_m) ~ log(Brain_Size_Species_Mean), data = d)
 ```
 
 ```{R}
-ggplot(d, aes(Brain_Size_Species_Mean, MaxLongevity_m)) + 
+(plot1 <- ggplot(d, aes(Brain_Size_Species_Mean, MaxLongevity_m)) + 
   geom_point() + 
-  geom_smooth(method = "lm", show.legend = TRUE)
+  geom_smooth(method = "lm", se = FALSE))
 
-ggplot(d, aes(log(Brain_Size_Species_Mean), log(MaxLongevity_m))) + 
+(plot2 <- ggplot(d, aes(log(Brain_Size_Species_Mean), log(MaxLongevity_m))) + 
   geom_point() + 
-  geom_smooth(method = "lm", show.legend = TRUE)
+  geom_smooth(method = "lm", se = FALSE))
+```
+
+The plots above demonstrate the relationship between longevity and species brain size, before and after log transforming the data. The line in blue on the plot has the slope and intercept generated from running a linear regression model for the effect of brain size on longevity. 
+
+```{R}
+summary(fit1) #to show significance of the model
+alpha <- 0.1
+(CI_fit1 <- confint(fit1, level = 1 - alpha))
+
+summary(fit2) #to show significance of the model
+(CI_fit2 <- confint(fit2, level = 1 - alpha))
+```
+
+In *fit1*, the model produced before log transforming the data, the estimate of the slope is 1.2180. This can be interpreted to mean that for every additional gram that the brain size of a species increases, the longevity increases by a factor of 1.2180 months. As indicated in the summary above, this is a significant result. The 90% confidence interval around this slope is (1.03557, 1.40041).
+
+In *fit2*, the model produced after log transforming the data, the estimate of the slope is 0.23415. This can be interpreted to mean that each time the brain size of a species increases by 1%, the longevity increases by 0.23415%. As indicated in the summary above, this is a significant result. The 90% confidence interval around this slope is (0.20464, 0.26366).
+
+```{R}
+df <- augment(fit1)
+head(df)
+
+sd <- glance(fit1) %>% pull(sigma)
+
+df <- df %>%
+  mutate(
+    c.lwr = .fitted - qt(1 - alpha / 2, nrow(df) - 2) * .se.fit,
+    c.upr = .fitted + qt(1 - alpha / 2, nrow(df) - 2) * .se.fit,
+    se.prediction = sqrt(sd^2 + .se.fit^2),
+    p.lwr = .fitted - qt(1 - alpha / 2, nrow(df) - 2) * se.prediction,
+    p.upr = .fitted + qt(1 - alpha / 2, nrow(df) - 2) * se.prediction
+  )
+g <- ggplot(data = df, aes(x = Brain_Size_Species_Mean, y = MaxLongevity_m))
+g <- g + geom_point(alpha = 0.5)
+g <- g + geom_line(aes(x = Brain_Size_Species_Mean, y = .fitted), color = "black")
+g <- g + geom_line(aes(x = Brain_Size_Species_Mean, y = c.lwr), color = "blue")
+g <- g + geom_line(aes(x = Brain_Size_Species_Mean, y = c.upr), color = "blue")
+g <- g + geom_line(aes(x = Brain_Size_Species_Mean, y = p.lwr), color = "red")
+g <- g + geom_line(aes(x = Brain_Size_Species_Mean, y = p.upr), color = "red")
+g + ggtitle("Longevity ~ Brain Size")
 ```
 
 ```{R}
-alpha <- 0.1
+df1 <- augment(fit2)
+head(df1)
 
-(CI_fit1 <- confint(fit1, level = 1 - alpha))
+sd <- glance(fit2) %>% pull(sigma)
 
-(CI_fit2 <- confint(fit2, level = 1 - alpha))
+df1 <- df1 %>%
+  mutate(
+    c.lwr = .fitted - qt(1 - alpha / 2, nrow(df1) - 2) * .se.fit,
+    c.upr = .fitted + qt(1 - alpha / 2, nrow(df1) - 2) * .se.fit,
+    se.prediction = sqrt(sd^2 + .se.fit^2),
+    p.lwr = .fitted - qt(1 - alpha / 2, nrow(df1) - 2) * se.prediction,
+    p.upr = .fitted + qt(1 - alpha / 2, nrow(df1) - 2) * se.prediction
+  )
+
+g <- ggplot(data = df1, aes(x = log.Brain_Size_Species_Mean., y = log.MaxLongevity_m.))
+g <- g + geom_point(alpha = 0.5)
+g <- g + geom_line(aes(x = log.Brain_Size_Species_Mean., y = .fitted), color = "black")
+g <- g + geom_line(aes(x = log.Brain_Size_Species_Mean., y = c.lwr), color = "blue")
+g <- g + geom_line(aes(x = log.Brain_Size_Species_Mean., y = c.upr), color = "blue")
+g <- g + geom_line(aes(x = log.Brain_Size_Species_Mean., y = p.lwr), color = "red")
+g <- g + geom_line(aes(x = log.Brain_Size_Species_Mean., y = p.upr), color = "red")
+g + ggtitle("Log(Longevity) ~ Log(Brain Size)")
 ```
+
+The above code adds lines for the 90% confidence (shown here in blue) and prediction (shown here in red) intervals to each plot. 
+
+```{R}
+ci <- predict(fit1,
+  newdata = data.frame(Brain_Size_Species_Mean = 750),
+  interval = "confidence", level = 1 - alpha
+)
+ci
+
+ci <- predict(fit2,
+  newdata = data.frame(Brain_Size_Species_Mean = 750),
+  interval = "confidence", level = 1 - alpha
+)
+ci
+```
+
+The above code uses the values for the slope and intercept of each model to predict the point estimate and 90% confidence interval for the longevity of a species who brain weight is measured to be 750 grams. Using the first model, the point estimate is found to be 1162.445 grams with a confidence interval of (1037.634,1287.256). Using the second model with the log transformed data, the point estimate is found to be 6.429 grams with a confidence interval of (6.335,6.523). Ultimately, however, I am hesitant to trust using this model to predict a value such as 750 grams for the brain size of a species since the data we used to create the model only has values as great as around 500 grams. We would need to fit a model using more data that perhaps includes values closer/around a value as great as this in order to trust the resulting estimates.
+
+As demonstrated most easily by the varying plots of the models shown above, the log-transformed data provides a more linear relationship to the data and therefore makes the model fit to the data more accurate (this can be seen visually by looking at the closer fit of the confidence intervals on the log transformed graph as compared to the graph before the transformation). From this model we can more accurately predict what the values for longevity will be given the brain size of a species so long as the brain size falls within the bounds of what the model can more accurately predict
+
 ## Challenge 2
+
+The following code creates new variables for log transformed version of both *Body_mass_female_mean* and *HomeRange_km2* for later ease in use of the transformed variables. Then a linear regression is performed and the model is assigned to the name *fit3* and a summary of the output is displayed.
 
 ```{R}
 d$log_Body_mass_female_mean <- log(d$Body_mass_female_mean)
@@ -49,18 +130,29 @@ fit3 <- lm(log_HomeRange_km2 ~ log_Body_mass_female_mean, data = d)
 summary(fit3)
 ```
 
+The code below creates a bootstrapped sampling distribution for each coefficient. boot_dat generates a random sample with replacement from the dataset. fit generates the linear regression model of interest using the log transformed version of the varirables as assigned above. coef(fit) pulls the coefficient estimates generated from the model run for each random sample. replicate(1000,...) runs the provided functions 1000 times and saves them to the defined, samp_distn.
+
 ```{R}
+set.seed(42)
 samp_distn<-replicate(1000, {
-  boot_dat <- sample_frac(d, replace=T) #bootstrap your data
-  fit <- lm(log_HomeRange_km2 ~ log_Body_mass_female_mean, data=boot_dat) #fit model
-  coef(fit) #save coefs
+  boot_dat <- sample_frac(d, replace=T)
+  fit <- lm(log(HomeRange_km2) ~ log(Body_mass_female_mean), data=boot_dat)
+  coef(fit)
 })
+```
 
+The code below creates histograms of the sampling distributions created for each of the coefficients as defined by their titles.
+
+```{R}
 hist(samp_distn[1,], main = "Bootstrapped β0", xlab = "β0")
-hist(samp_distn[2,], main = "Bootstrapped β1", xlab = "β1")
+hist(samp_distn[2,], main = "Bootstrapped β1", xlab = "β1") 
+```
 
-sd(samp_distn[1,])
-sd(samp_distn[2,])
+The following code generates the 95% confidence intervals for each of the coefficients. This is accomplished by obtaining the standard error estimates for each coefficient by calculating the standard deviation of the previously generated sampling distributions. The quantile function is then used to determine the upper and lower bounds of the confidence intervals. The first interval listed is for β0 (the intercept) and the second is for β1 (the slope).
+
+```{R}
+sd(samp_distn[1,]) #intercept
+sd(samp_distn[2,]) #slope
 
 samp_distn <- samp_distn %>% as.data.frame()
 
@@ -69,10 +161,14 @@ alpha <- 0.05
 p_lower <- alpha / 2
 p_upper <- 1 - (alpha / 2)
 
-quantile(samp_distn[1,], p_lower); quantile(samp_distn[1,], p_upper)
+quantile(samp_distn[1,], p_lower); quantile(samp_distn[1,], p_upper) #intercept
 
-quantile(samp_distn[2,], p_lower); quantile(samp_distn[2,], p_upper)
+quantile(samp_distn[2,], p_lower); quantile(samp_distn[2,], p_upper) #slope
+```
 
+The standard errors generated using the lm() function are shown below. These values are somewhat greater than values calculated using the sampling distributions shown above. Also shown below are the confidence intervals as determined by the information generated using the lm() function. Compared to the intervals generated above using the bootstrapped sampling distributions, these intervals are somewhat more narrow.
+
+```{R}
 tidy(fit3)
 confint(fit3, level = 1 - alpha)
 ```
@@ -80,5 +176,48 @@ confint(fit3, level = 1 - alpha)
 ## Challenge 3
 
 ```{R}
+boot_lm <- function(d, model, conf.level=0.95, reps = 1000){
+  fit <- lm(model, d)
+  
+  coef = summary(fit)$coefficients[,1]
+  
+  se = summary(fit)$coefficients[,2]
+  
+  conf = confint(fit, level = conf.level)
+  
+  samp_dist<-replicate(reps, {
+    boot_dat <- sample_frac(d, replace=T)
+    mod <- lm(model, data=boot_dat)
+    coef(mod)
+    })
+  
+  boot_beta0 <- mean(samp_dist[1,])
+  boot_beta1 <- mean(samp_dist[2,])
+  boot_coef = rbind(boot_beta0,boot_beta1)
+  
+  se_inter <- sd(samp_dist[1,])
+  se_slope <- sd(samp_dist[2,])
+  boot_se = rbind(se_inter,se_slope)
+  
+  alpha <- 1 - conf.level
+  p_lower <- alpha / 2
+  p_upper <- 1 - (alpha / 2)
+  
+  intercept_lower <- quantile(samp_dist[1,], p_lower) 
+  intercept_upper <- quantile(samp_dist[1,], p_upper)
+  
+  slope_lower <- quantile(samp_dist[2,], p_lower)
+  slope_upper <- quantile(samp_dist[2,], p_upper)
+  
+  CI_boot_lower = rbind(intercept_lower,slope_lower)
+  CI_boot_upper = rbind(intercept_upper,slope_upper)
+  
+  data.frame(coef, se, conf, boot_coef, boot_se, CI_boot_lower, CI_boot_upper)
+  
+}
 
+boot_lm(d, "log(DayLength_km) ~ log(Body_mass_female_mean)")
+boot_lm(d, "log(HomeRange_km2) ~ log(Body_mass_female_mean)")
 ```
+
+In the resulting dataframes above, the first half of the dataset provides the calculations using the information generated from the lm() function. The second half uses information generated from the bootstrapped sampling distributions created using the variables of interest.
