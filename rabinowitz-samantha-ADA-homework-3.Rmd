@@ -7,18 +7,74 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(infer)
+library(broom)
 ```
 
 ## Challenge 1
 
 ```{R}
+f <- "https://raw.githubusercontent.com/difiore/ADA-datasets/master/KamilarAndCooperData.csv"
+d <- read_csv(f, col_names = TRUE)
 
+fit1 <- lm(MaxLongevity_m ~ Brain_Size_Species_Mean, data = d)
+fit2 <- lm(log(MaxLongevity_m) ~ log(Brain_Size_Species_Mean), data = d)
 ```
 
+```{R}
+ggplot(d, aes(Brain_Size_Species_Mean, MaxLongevity_m)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", show.legend = TRUE)
+
+ggplot(d, aes(log(Brain_Size_Species_Mean), log(MaxLongevity_m))) + 
+  geom_point() + 
+  geom_smooth(method = "lm", show.legend = TRUE)
+```
+
+```{R}
+alpha <- 0.1
+
+(CI_fit1 <- confint(fit1, level = 1 - alpha))
+
+(CI_fit2 <- confint(fit2, level = 1 - alpha))
+```
 ## Challenge 2
 
 ```{R}
+d$log_Body_mass_female_mean <- log(d$Body_mass_female_mean)
+d$log_HomeRange_km2 <- log(d$HomeRange_km2)
 
+fit3 <- lm(log_HomeRange_km2 ~ log_Body_mass_female_mean, data = d)
+summary(fit3)
+```
+
+```{R}
+samp_distn<-replicate(1000, {
+  boot_dat <- sample_frac(d, replace=T) #bootstrap your data
+  fit <- lm(log_HomeRange_km2 ~ log_Body_mass_female_mean, data=boot_dat) #fit model
+  coef(fit) #save coefs
+})
+
+hist(samp_distn[1,], main = "Bootstrapped β0", xlab = "β0")
+hist(samp_distn[2,], main = "Bootstrapped β1", xlab = "β1")
+
+sd(samp_distn[1,])
+sd(samp_distn[2,])
+
+samp_distn <- samp_distn %>% as.data.frame()
+
+alpha <- 0.05
+
+p_lower <- alpha / 2
+p_upper <- 1 - (alpha / 2)
+
+quantile(samp_distn[1,], p_lower); quantile(samp_distn[1,], p_upper)
+
+quantile(samp_distn[2,], p_lower); quantile(samp_distn[2,], p_upper)
+
+tidy(fit3)
+confint(fit3, level = 1 - alpha)
 ```
 
 ## Challenge 3
