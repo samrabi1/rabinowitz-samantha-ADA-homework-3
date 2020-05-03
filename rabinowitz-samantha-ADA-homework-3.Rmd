@@ -1,8 +1,9 @@
 ---
 title: "Homework 3"
 author: "Samantha Rabinowitz, sar4357"
-date: "4/30/2020"
-output: html_document
+date: "5/3/2020"
+output:
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -63,6 +64,7 @@ df <- df %>%
     p.lwr = .fitted - qt(1 - alpha / 2, nrow(df) - 2) * se.prediction,
     p.upr = .fitted + qt(1 - alpha / 2, nrow(df) - 2) * se.prediction
   )
+
 g <- ggplot(data = df, aes(x = Brain_Size_Species_Mean, y = MaxLongevity_m))
 g <- g + geom_point(alpha = 0.5)
 g <- g + geom_line(aes(x = Brain_Size_Species_Mean, y = .fitted), color = "black")
